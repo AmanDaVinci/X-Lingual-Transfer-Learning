@@ -1,5 +1,9 @@
 import torch
+from pathlib import Path
+from functools import partial
 from transformers import PreTrainedTokenizer
+from torch.utils.data import Dataset, DataLoader, SequentialSampler, RandomSampler
+from cross_lingual.datasets import LineTextDataset
 
 
 def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, mlm_probability=0.15) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -34,3 +38,10 @@ def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, mlm_probab
 
     # The rest of the time (10% of the time) we keep the masked input tokens unchanged
     return inputs, labels
+
+def get_dataloader(data_path: Path, tokenizer: PreTrainedTokenizer, batch_size: int):
+    dataset = LineTextDataset(data_path, tokenizer, tokenizer.max_len)
+    sampler = RandomSampler(dataset)
+    dataloader = DataLoader(dataset, sampler=sampler, batch_size=batch_size,
+                            collate_fn=partial(dataset.collate, pad_token_id=tokenizer.pad_token_id))
+    return dataloader
