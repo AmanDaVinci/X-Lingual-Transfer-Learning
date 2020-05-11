@@ -1,11 +1,26 @@
 import sys
 import torch
+import logging
 import numpy as np
+from tqdm import tqdm
 from pathlib import Path
-from typing import Dict, List
+from functools import partial
+from typing import Dict, List, Tuple
+from torch.utils.tensorboard import SummaryWriter
+from transformers import (
+    AdamW,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+    BertTokenizer,
+    BertForMaskedLM,
+    get_linear_schedule_with_warmup,
+)
+import cross_lingual.utils as utils
+from cross_lingual.datasets.utils import get_dataloader
 
 RESULTS = Path("results")
 CHECKPOINTS = Path("checkpoints")
+CACHE_DIR = Path("cache")
 LOG_DIR = Path("logs")
 BEST_MODEL_FNAME = "best-model.pt"
 
@@ -28,10 +43,56 @@ class Trainer():
                 'save_freq': 100,
                 'device': 'cpu',
                 'data_dir': 'data/mtl-dataset/',
+                'max_grad_norm': 1.0,
                 #TODO: add more as required
             }
         """
-        pass
+        self.config = config
+
+        self.data_dir = Path(config['data_dir'])
+        self.checkpoint_dir = CHECKPOINTS / config['exp_name']
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        self.exp_dir = RESULTS / config['exp_name']
+        self.exp_dir.mkdir(parents=True, exist_ok=True)
+        self.log_dir = self.exp_dir / LOG_DIR
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        self.writer = SummaryWriter(log_dir=self.log_dir)
+        utils.init_logging(log_path=self.log_dir)
+        logging.info(f'Config :\n{config}')
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logging.info(f'Using device: {self.device}')
+
+        self.model = BertForMaskedLM.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR).to(self.device)
+        self.tokenizer = BertTokenizer.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR)
+        self.train_dl = get_dataloader(self.data_dir / "train.txt", self.tokenizer, config['batch_size'])
+        self.valid_dl = get_dataloader(self.data_dir / "valid.txt", self.tokenizer, config['batch_size'])
+
+        self.model.resize_token_embeddings(len(self.tokenizer))
+        # TODO: implement layer freezing
+        # freeze_layers(self.model, n_layers=config['layers_to_freeze'])
+
+        # apply weight decay to all parameters except bias and layer normalization
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": config['weight_decay'],
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0
+            },
+        ]
+        total_steps = len(self.train_dl) * config['epochs']
+        opt = AdamW(optimizer_grouped_parameters, lr=config['lr'], eps=config['adam_epsilon'])
+        scheduler = get_linear_schedule_with_warmup(opt, num_warmup_steps=config['warmup_steps'],
+                                                    num_training_steps=total_steps)
+        # Init trackers
+        self.current_iter = 0
+        self.current_epoch = 0
+        self.best_perplexity = 0.
 
     def run(self):
             """ Run the train-eval loop
