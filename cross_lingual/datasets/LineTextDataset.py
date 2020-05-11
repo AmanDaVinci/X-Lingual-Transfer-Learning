@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 
 class LineTextDataset(Dataset):
-    def __init__(self, tokenizer: PreTrainedTokenizer, file_path: Path, block_size=512):
+    def __init__(self, file_path: Path, tokenizer: PreTrainedTokenizer, block_size=512):
         assert file_path.is_file(), "Missing data file"
         
         with open(file_path, encoding="utf-8") as f:
@@ -18,5 +18,6 @@ class LineTextDataset(Dataset):
     def __getitem__(self, i):
         return torch.tensor(self.examples[i], dtype=torch.long)
 
-    def collate(self, examples: List[torch.Tensor], pad_token_id: int):
+    @staticmethod
+    def collate(examples: List[torch.Tensor], pad_token_id: int):
         return pad_sequence(examples, batch_first=True, padding_value=pad_token_id)
