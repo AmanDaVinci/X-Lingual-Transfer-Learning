@@ -16,7 +16,7 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 import cross_lingual.utils as utils
-from cross_lingual.datasets.utils import get_dataloader
+from cross_lingual.datasets.utils import mask_tokens, get_dataloader
 
 RESULTS = Path("results")
 CHECKPOINTS = Path("checkpoints")
@@ -86,9 +86,9 @@ class Trainer():
             },
         ]
         total_steps = len(self.train_dl) * config['epochs']
-        opt = AdamW(optimizer_grouped_parameters, lr=config['lr'], eps=config['adam_epsilon'])
-        scheduler = get_linear_schedule_with_warmup(opt, num_warmup_steps=config['warmup_steps'],
-                                                    num_training_steps=total_steps)
+        self.opt = AdamW(optimizer_grouped_parameters, lr=config['lr'], eps=config['adam_epsilon'])
+        self.scheduler = get_linear_schedule_with_warmup(opt, num_warmup_steps=config['warmup_steps'],
+                                                         num_training_steps=total_steps)
         # Init trackers
         self.current_iter = 0
         self.current_epoch = 0
@@ -100,10 +100,10 @@ class Trainer():
             If the loop is interrupted manually, finalization will still be executed
             """
             try:
-                print(f"Begin training for {self.config['epochs']} epochs")
+                logging.info(f"Begin training for {self.config['epochs']} epochs")
                 self.train()
             except KeyboardInterrupt:
-                print("Manual interruption registered. Please wait to finalize...")
+                logging.info("Manual interruption registered. Please wait to finalize...")
                 self.save_checkpoint()
     
     def train(self):
@@ -115,9 +115,9 @@ class Trainer():
                 self.current_iter += 1
                 results = self._batch_iteration(batch, training=True)
                 
-                self.writer.add_scalar('Accuracy/Train', results['accuracy'], self.current_iter)
+                self.writer.add_scalar('Perplexity/Train', results['perplexity'], self.current_iter)
                 self.writer.add_scalar('Loss/Train', results['loss'], self.current_iter)
-                print(f"EPOCH:{epoch} STEP:{i}\t Accuracy: {results['accuracy']:.3f} Loss: {results['loss']:.3f}")
+                logging.info(f"EPOCH:{epoch} STEP:{i}\t Perplexity: {results['perplexity']:.3f} Loss: {results['loss']:.3f}")
 
                 if i % self.config['valid_freq'] == 0:
                     self.validate()
@@ -127,28 +127,28 @@ class Trainer():
     def validate(self):
         """ Main validation loop """
         losses = []
-        accuracies = []
+        perplexities = []
 
-        print("Begin evaluation over validation set")
+        logging.info("Begin evaluation over validation set")
         with torch.no_grad():
             for i, batch in enumerate(self.valid_dl):
                 results = self._batch_iteration(batch, training=False)
-                self.writer.add_scalar('Accuracy/Valid', results['accuracy'], self.current_iter)
+                self.writer.add_scalar('Perplexity/Valid', results['perplexity'], self.current_iter)
                 self.writer.add_scalar('Loss/Valid', results['loss'], self.current_iter)
                 losses.append(results['loss'])
-                accuracies.append(results['accuracy'])
+                perplexities.append(results['perplexity'])
             
-        mean_accuracy = np.mean(accuracies)
-        if mean_accuracy > self.best_accuracy:
-            self.best_accuracy = mean_accuracy
+        mean_perplexity = np.mean(perplexities)
+        if mean_perplexity > self.best_perplexity:
+            self.best_perplexity = mean_perplexity
             self.save_checkpoint(BEST_MODEL_FNAME)
         
         report = (f"[Validation]\t"
-                  f"Accuracy: {mean_accuracy:.3f} "
+                  f"Perpelexity: {mean_perplexity:.3f} "
                   f"Total Loss: {np.mean(losses):.3f}")
-        print(report)
+        logging.info(report)
 
-    def test(self):
+    def test(self, test_file: str = 'test.txt'):
         """ Main testing loop """
         if 'test_checkpoint' in self.config:
             self.load_checkpoint(self.config['test_checkpoint'])
@@ -156,38 +156,46 @@ class Trainer():
             sys.exit("No test_checkpoint found in config. Must include checkpoint for testing.")
 
         losses = []
-        accuracies = []
+        perplexities = []
+        test_dl = get_dataloader(self.data_dir / test_file, self.tokenizer, self.config['batch_size']*2)
         with torch.no_grad():
-            for i, batch in enumerate(self.test_dl):
+            for i, batch in enumerate(test_dl):
                 results = self._batch_iteration(batch, training=False)
                 losses.append(results['loss'])
-                accuracies.append(results['accuracy'])
+                perplexities.append(results['perplexity'])
             
         report = (f"[Test]\t"
-                  f"Accuracy: {np.mean(accuracies):.3f} "
+                  f"Perplexity: {np.mean(perplexities):.3f} "
                   f"Total Loss: {np.mean(losses):.3f}")
+        logging.info(report)
         return report
 
     def _batch_iteration(self, batch: tuple, training: bool):
         """ Iterate over one batch """
 
         # send tensors to model device
-        x = batch[0].to(self.config['device'])
-        label = batch[1].to(self.config['device'])
+        inputs, labels = mask_tokens(batch, self.tokenizer)
+        inputs = inputs.to(self.config['device'])
+        labels = labels.to(self.config['device'])
 
         if training:
             self.opt.zero_grad()
-            pred = self.model(x)
-            loss =  self.criterion(pred, label)
+            outputs = self.model(inputs, masked_lm_labels=labels)
+            loss = outputs[0]
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+                                           self.config['max_grad_norm'])
             self.opt.step()
+            self.scheduler.step()  # Update learning rate schedule
+            self.model.zero_grad()
+
         else:
             with torch.no_grad():
-                pred = self.model(x)
-                loss =  self.criterion(pred, label)
+                outputs = self.model(inputs, masked_lm_labels=labels)
+                loss = outputs[0]
 
-        acc = (pred.argmax(dim=1) == label).float().mean().item()
-        results = {'accuracy': acc, 'loss': loss.item()}
+        perplexity = torch.exp(loss)
+        results = {'perplexity': perplexity.item(), 'loss': loss.item()}
         return results
 
     def save_checkpoint(self, file_name: str = None):
@@ -207,12 +215,13 @@ class Trainer():
         state = {
             'epoch': self.current_epoch,
             'iter': self.current_iter,
-            'best_accuracy': self.best_accuracy,
+            'best_perplexity': self.best_perplexity,
             'model_state': self.model.state_dict(),
             'optimizer': self.opt.state_dict(),
+            'scheduler': self.scheduler.state_dict()
         }
         torch.save(state, file_name)
-        self.logger.info(f"Checkpoint saved @ {file_name}")
+        logging.info(f"Checkpoint saved @ {file_name}")
 
     def load_checkpoint(self, file_name: str):
         """Load the checkpoint with the given file name
@@ -221,7 +230,7 @@ class Trainer():
             - current epoch
             - current iteration
             - model state
-            - best accuracy achieved so far
+            - best perplexity achieved so far
             - optimizer state
 
         Parameters
@@ -236,9 +245,10 @@ class Trainer():
 
             self.current_epoch = checkpoint['epoch']
             self.current_iter = checkpoint['iter']
-            self.best_accuracy = checkpoint['best_accuracy']
+            self.best_perplexity = checkpoint['best_perplexity']
             self.model.load_state_dict(checkpoint['model_state'])
             self.opt.load_state_dict(checkpoint['optimizer'])
+            self.scheduler.load_state_dict(checkpoint['scheduler'])
 
         except OSError:
-            self.logger.error(f"No checkpoint exists @ {self.checkpoint_dir}")
+            logging.error(f"No checkpoint exists @ {self.checkpoint_dir}")
