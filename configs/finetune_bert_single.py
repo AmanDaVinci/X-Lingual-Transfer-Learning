@@ -13,5 +13,5 @@ config = {
     'adam_epsilon': 1e-8,
     'warmup_steps': 0,
     'freeze_per_epoch': False,
-    'freeze_static_layers': [],
+    'freeze_static_layers': 0,
 }

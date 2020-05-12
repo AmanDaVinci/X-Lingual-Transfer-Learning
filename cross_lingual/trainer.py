@@ -274,7 +274,7 @@ class Trainer():
 
     def freeze_layers(self):
         freeze_per_epoch = self.config.get('freeze_per_epoch', False)
-        freeze_static_layers = self.config.get('freeze_static_layers', [])
+        freeze_static_layers = self.config.get('freeze_static_layers', 0)
 
         assert not (bool(freeze_per_epoch) and bool(freeze_static_layers)), \
             'Cannot have both gradual freezing and static freezing'
@@ -293,21 +293,18 @@ class Trainer():
                 0, len(self.model.bert.encoder.layer) - self.current_epoch)
             bert_layers_to_freeze = range(0, max_frozen_layer)
         elif freeze_static_layers:
-            first_layer = min(freeze_static_layers)
-            after_last_layer = first_layer + len(freeze_static_layers)
+            assert (0 <= freeze_static_layers) and \
+                (freeze_static_layers <= len(self.model.bert.encoder.layer)), \
+                'You can not freeze more layers than the present amount'
 
-            to_be_frozen = list(range(first_layer, after_last_layer))
-            assert to_be_frozen == freeze_static_layers, \
-                'Frozen layers must be consecutive'
-
-            assert after_last_layer == len(self.model.bert.encoder.layer), \
-                'You must always freeze from the last layer'
-
-            bert_layers_to_freeze = to_be_frozen
+            max_frozen_layer = freeze_static_layers
         else:
-            bert_layers_to_freeze = []
+            max_frozen_layer = 0
+
+        bert_layers_to_freeze = range(0, max_frozen_layer)
 
         for layer_idx in bert_layers_to_freeze:
+            print('d0', self.current_epoch, layer_idx)
             for param in self.model.bert.encoder.layer[layer_idx].parameters():
                 param.requires_grad = False
 
