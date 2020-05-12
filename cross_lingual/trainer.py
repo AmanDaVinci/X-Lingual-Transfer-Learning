@@ -66,6 +66,7 @@ class Trainer():
 
         self.model = BertForMaskedLM.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR).to(self.device)
         self.tokenizer = BertTokenizer.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR)
+        import pdb; pdb.set_trace()
         self.train_dl = get_dataloader(self.data_dir / "train.txt", self.tokenizer, config['batch_size'])
         self.valid_dl = get_dataloader(self.data_dir / "valid.txt", self.tokenizer, config['batch_size'])
 
@@ -81,13 +82,13 @@ class Trainer():
                 "weight_decay": config['weight_decay'],
             },
             {
-                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                "params": [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)],
                 "weight_decay": 0.0
             },
         ]
         total_steps = len(self.train_dl) * config['epochs']
         self.opt = AdamW(optimizer_grouped_parameters, lr=config['lr'], eps=config['adam_epsilon'])
-        self.scheduler = get_linear_schedule_with_warmup(opt, num_warmup_steps=config['warmup_steps'],
+        self.scheduler = get_linear_schedule_with_warmup(self.opt, num_warmup_steps=config['warmup_steps'],
                                                          num_training_steps=total_steps)
         # Init trackers
         self.current_iter = 0
@@ -138,7 +139,7 @@ class Trainer():
                 losses.append(results['loss'])
                 perplexities.append(results['perplexity'])
             
-        mean_perplexity = np.mean(perplexities)
+        mean_perplexity = np.exp(np.mean(losses))
         if mean_perplexity > self.best_perplexity:
             self.best_perplexity = mean_perplexity
             self.save_checkpoint(BEST_MODEL_FNAME)
@@ -153,7 +154,7 @@ class Trainer():
         if 'test_checkpoint' in self.config:
             self.load_checkpoint(self.config['test_checkpoint'])
         else:
-            sys.exit("No test_checkpoint found in config. Must include checkpoint for testing.")
+            self.load_checkpoint(BEST_MODEL_FNAME)
 
         losses = []
         perplexities = []
@@ -165,7 +166,7 @@ class Trainer():
                 perplexities.append(results['perplexity'])
             
         report = (f"[Test]\t"
-                  f"Perplexity: {np.mean(perplexities):.3f} "
+                  f"Perplexity: {np.exp(np.mean(losses)):.3f} "
                   f"Total Loss: {np.mean(losses):.3f}")
         logging.info(report)
         return report
