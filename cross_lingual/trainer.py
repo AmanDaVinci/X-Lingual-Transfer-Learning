@@ -66,7 +66,6 @@ class Trainer():
 
         self.model = BertForMaskedLM.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR).to(self.device)
         self.tokenizer = BertTokenizer.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR)
-        import pdb; pdb.set_trace()
         self.train_dl = get_dataloader(self.data_dir / "train.txt", self.tokenizer, config['batch_size'])
         self.valid_dl = get_dataloader(self.data_dir / "valid.txt", self.tokenizer, config['batch_size'])
 
