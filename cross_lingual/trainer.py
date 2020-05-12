@@ -240,7 +240,7 @@ class Trainer():
         """
         try:
             file_name = self.checkpoint_dir / file_name
-            self.logger.info(f"Loading checkpoint from {file_name}")
+            logging.info(f"Loading checkpoint from {file_name}")
             checkpoint = torch.load(file_name, self.config['device'])
 
             self.current_epoch = checkpoint['epoch']
