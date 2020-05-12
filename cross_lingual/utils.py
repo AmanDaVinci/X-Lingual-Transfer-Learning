@@ -1,8 +1,8 @@
 import logging
 from pathlib import Path
 
-def init_logging(log_path=LOG_PATH, log_level=logging.DEBUG):
-    """Initialize logger."""
+def init_logging(log_path, log_level=logging.INFO):
+    """Initialize logger"""
     log_path = Path(log_path)
     logging.basicConfig(level=log_level) # set minimum log level
     logFormatter = logging.Formatter("%(asctime)s [%(levelname)-5.5s]  %(message)s")
