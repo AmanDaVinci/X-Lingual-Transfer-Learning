@@ -70,8 +70,6 @@ class Trainer():
         self.valid_dl = get_dataloader(self.data_dir / "valid.txt", self.tokenizer, config['batch_size'])
 
         self.model.resize_token_embeddings(len(self.tokenizer))
-        # TODO: implement layer freezing
-        # freeze_layers(self.model, n_layers=config['layers_to_freeze'])
 
         # apply weight decay to all parameters except bias and layer normalization
         no_decay = ["bias", "LayerNorm.weight"]
@@ -110,6 +108,7 @@ class Trainer():
         """ Main training loop """
         for epoch in range(self.current_epoch, self.config['epochs']):
             self.current_epoch = epoch
+            self.freeze_layers()
 
             for i, batch in enumerate(self.train_dl):
                 self.current_iter += 1
@@ -252,3 +251,23 @@ class Trainer():
 
         except OSError:
             logging.error(f"No checkpoint exists @ {self.checkpoint_dir}")
+
+    def freeze_layers(self):
+        # start by un-freezing everything
+        # (not the optimal way, but makes the latter computations easier)
+        for param in self.model.bert.parameters():
+            param.requires_grad = True
+
+        # always freeze embedding layer
+        for param in self.model.bert.embeddings.parameters():
+            param.requires_grad = False
+
+        max_frozen_layer = max(
+            0, len(self.model.bert.encoder.layer) - self.current_epoch)
+        bert_layers_to_freeze = range(0, max_frozen_layer)
+
+        for layer_idx in bert_layers_to_freeze:
+            for param in self.model.bert.encoder.layer[layer_idx].parameters():
+                param.requires_grad = False
+
+        # TODO: figure out what to do with the final classifier layer

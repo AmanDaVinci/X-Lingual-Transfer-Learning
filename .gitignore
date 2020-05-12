@@ -135,3 +135,7 @@ dmypy.json
 
 # vim swp files
 .*.swp
+
+# training data
+/checkpoints/
+/results/
