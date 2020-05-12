@@ -1,9 +1,10 @@
 import torch
 from pathlib import Path
 from functools import partial
+from typing import Dict, List, Tuple
 from transformers import PreTrainedTokenizer
 from torch.utils.data import Dataset, DataLoader, SequentialSampler, RandomSampler
-from cross_lingual.datasets import LineTextDataset
+from cross_lingual.datasets.LineTextDataset import LineTextDataset
 
 
 def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, mlm_probability=0.15) -> Tuple[torch.Tensor, torch.Tensor]:
