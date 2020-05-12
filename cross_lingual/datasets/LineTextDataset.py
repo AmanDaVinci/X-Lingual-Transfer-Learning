@@ -1,9 +1,12 @@
 import torch
+from pathlib import Path
 from typing import Dict, List, Tuple
 from torch.utils.data import Dataset 
 from torch.nn.utils.rnn import pad_sequence
+from transformers import PreTrainedTokenizer
 
-class LineTextDataset(Dataset):
+class LineTextDataset():
+
     def __init__(self, file_path: Path, tokenizer: PreTrainedTokenizer, block_size=512):
         assert file_path.is_file(), "Missing data file"
         
