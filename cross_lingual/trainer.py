@@ -273,6 +273,12 @@ class Trainer():
             logging.error(f"No checkpoint exists @ {self.checkpoint_dir}")
 
     def freeze_layers(self):
+        freeze_per_epoch = self.config.get('freeze_per_epoch', False)
+        freeze_static_layers = self.config.get('freeze_static_layers', [])
+
+        assert not (bool(freeze_per_epoch) and bool(freeze_static_layers)), \
+            'Cannot have both gradual freezing and static freezing'
+
         # start by un-freezing everything
         # (not the optimal way, but makes the latter computations easier)
         for param in self.model.bert.parameters():
@@ -282,9 +288,24 @@ class Trainer():
         for param in self.model.bert.embeddings.parameters():
             param.requires_grad = False
 
-        max_frozen_layer = max(
-            0, len(self.model.bert.encoder.layer) - self.current_epoch)
-        bert_layers_to_freeze = range(0, max_frozen_layer)
+        if freeze_per_epoch is True:
+            max_frozen_layer = max(
+                0, len(self.model.bert.encoder.layer) - self.current_epoch)
+            bert_layers_to_freeze = range(0, max_frozen_layer)
+        elif freeze_static_layers:
+            first_layer = min(freeze_static_layers)
+            after_last_layer = first_layer + len(freeze_static_layers)
+
+            to_be_frozen = list(range(first_layer, after_last_layer))
+            assert to_be_frozen == freeze_static_layers, \
+                'Frozen layers must be consecutive'
+
+            assert after_last_layer == len(self.model.bert.encoder.layer), \
+                'You must always freeze from the last layer'
+
+            bert_layers_to_freeze = to_be_frozen
+        else:
+            bert_layers_to_freeze = []
 
         for layer_idx in bert_layers_to_freeze:
             for param in self.model.bert.encoder.layer[layer_idx].parameters():
@@ -295,10 +316,10 @@ class Trainer():
         fn = self.hidden_state_dir / f'epoch-{self.current_epoch:05d}.npy'
 
         with open(fn, 'ab') as f:
-            for i in range(1, 13):
+            for i in range(1, len(self.model.bert.encoder.layer)+1):
                 layer_hidden_state = hidden_states[i].detach().cpu().numpy()
                 np.save(f, layer_hidden_state)
 
-            for i in range(0, 12):
+            for i in range(0, len(self.model.bert.encoder.layer)):
                 layer_attention = attentions[i].detach().cpu().numpy()
                 np.save(f, layer_attention)

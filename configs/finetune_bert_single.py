@@ -12,4 +12,6 @@ config = {
     'weight_decay': 0.0,
     'adam_epsilon': 1e-8,
     'warmup_steps': 0,
+    'freeze_per_epoch': False,
+    'freeze_static_layers': [],
 }
