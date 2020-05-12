@@ -11,6 +11,7 @@ from transformers import (
     AdamW,
     PreTrainedModel,
     PreTrainedTokenizer,
+    BertConfig,
     BertTokenizer,
     BertForMaskedLM,
     get_linear_schedule_with_warmup,
@@ -22,6 +23,7 @@ RESULTS = Path("results")
 CHECKPOINTS = Path("checkpoints")
 CACHE_DIR = Path("cache")
 LOG_DIR = Path("logs")
+HIDDEN_STATE_DIR = Path("hidden-states")
 BEST_MODEL_FNAME = "best-model.pt"
 
 
@@ -55,6 +57,8 @@ class Trainer():
 
         self.exp_dir = RESULTS / config['exp_name']
         self.exp_dir.mkdir(parents=True, exist_ok=True)
+        self.hidden_state_dir = self.exp_dir / HIDDEN_STATE_DIR
+        self.hidden_state_dir.mkdir(parents=True, exist_ok=True)
         self.log_dir = self.exp_dir / LOG_DIR
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.writer = SummaryWriter(log_dir=self.log_dir)
@@ -64,7 +68,14 @@ class Trainer():
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         logging.info(f'Using device: {self.device}')
 
-        self.model = BertForMaskedLM.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR).to(self.device)
+        bert_config = BertConfig.from_pretrained(config['bert_arch'],
+                                                 output_hidden_states=True,
+                                                 output_attentions=True)
+        self.model = BertForMaskedLM.from_pretrained(
+            config['bert_arch'],
+            cache_dir=CACHE_DIR,
+            config=bert_config).to(self.device)
+
         self.tokenizer = BertTokenizer.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR)
         self.train_dl = get_dataloader(self.data_dir / "train.txt", self.tokenizer, config['batch_size'])
         self.valid_dl = get_dataloader(self.data_dir / "valid.txt", self.tokenizer, config['batch_size'])
@@ -178,8 +189,13 @@ class Trainer():
         labels = labels.to(self.config['device'])
 
         if training:
+            # don't we need self.model.train()
+            # dropout layers are currently disabled
+
             self.opt.zero_grad()
             outputs = self.model(inputs, masked_lm_labels=labels)
+
+
             loss = outputs[0]
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(),
@@ -192,6 +208,10 @@ class Trainer():
             with torch.no_grad():
                 outputs = self.model(inputs, masked_lm_labels=labels)
                 loss = outputs[0]
+
+                hidden_states = outputs[2]
+                attentions = outputs[3]
+                self.save_hidden_states(hidden_states, attentions)
 
         perplexity = torch.exp(loss)
         results = {'perplexity': perplexity.item(), 'loss': loss.item()}
@@ -270,4 +290,15 @@ class Trainer():
             for param in self.model.bert.encoder.layer[layer_idx].parameters():
                 param.requires_grad = False
 
-        # TODO: figure out what to do with the final classifier layer
+
+    def save_hidden_states(self, hidden_states, attentions):
+        fn = self.hidden_state_dir / f'epoch-{self.current_epoch:05d}.npy'
+
+        with open(fn, 'ab') as f:
+            for i in range(1, 13):
+                layer_hidden_state = hidden_states[i].detach().cpu().numpy()
+                np.save(f, layer_hidden_state)
+
+            for i in range(0, 12):
+                layer_attention = attentions[i].detach().cpu().numpy()
+                np.save(f, layer_attention)
