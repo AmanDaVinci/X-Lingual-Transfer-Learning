@@ -79,6 +79,7 @@ class Trainer():
         self.tokenizer = BertTokenizer.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR)
         self.train_dl = get_dataloader(self.data_dir / "train.txt", self.tokenizer, config['batch_size'])
         self.valid_dl = get_dataloader(self.data_dir / "valid.txt", self.tokenizer, config['batch_size'])
+        self.xnli_dl = get_dataloader(self.data_dir / "xnli.txt", self.tokenizer, config['batch_size'])
 
         self.model.resize_token_embeddings(len(self.tokenizer))
 
@@ -130,32 +131,42 @@ class Trainer():
                 logging.info(f"EPOCH:{epoch} STEP:{i}\t Perplexity: {results['perplexity']:.3f} Loss: {results['loss']:.3f}")
 
                 if i % self.config['valid_freq'] == 0:
-                    self.validate()
+                    self.validate('valid')
+                    self.validate('xnli')
                 if i % self.config['save_freq'] == 0:
                     self.save_checkpoint()
     
-    def validate(self):
-        """ Main validation loop """
+    def validate(self, tag: str="valid"):
+        """ Main validation loop 
+        
+        Parameters
+        ---
+        tag: string
+            run validation on either "valid" or "xnli"
+        """
+        dl = self.valid_dl if tag == "valid" else self.xnli_dl
         losses = []
         perplexities = []
 
-        logging.info("Begin evaluation over validation set")
+        logging.info(f"Begin evaluation over {tag} set")
         with torch.no_grad():
-            for i, batch in enumerate(self.valid_dl):
+            for i, batch in enumerate(dl):
                 results = self._batch_iteration(batch, training=False)
-                self.writer.add_scalar('Perplexity/Valid', results['perplexity'], self.current_iter)
-                self.writer.add_scalar('Loss/Valid', results['loss'], self.current_iter)
                 losses.append(results['loss'])
                 perplexities.append(results['perplexity'])
             
-        mean_perplexity = np.exp(np.mean(losses))
-        if mean_perplexity > self.best_perplexity:
+        mean_loss = np.mean(losses)
+        mean_perplexity = np.exp(mean_loss)
+        # save best model based on validation perplexity only
+        if tag == "valid" and mean_perplexity > self.best_perplexity:
             self.best_perplexity = mean_perplexity
             self.save_checkpoint(BEST_MODEL_FNAME)
         
-        report = (f"[Validation]\t"
+        self.writer.add_scalar(f'Perplexity/{tag}', mean_perplexity, self.current_iter)
+        self.writer.add_scalar(f'Loss/{tag}', mean_loss, self.current_iter)
+        report = (f"[{tag}]\t"
                   f"Perpelexity: {mean_perplexity:.3f} "
-                  f"Total Loss: {np.mean(losses):.3f}")
+                  f"Loss: {mean_loss:3f}")
         logging.info(report)
 
     def test(self, test_file: str = 'test.txt'):
