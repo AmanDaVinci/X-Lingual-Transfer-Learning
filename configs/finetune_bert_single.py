@@ -1,5 +1,5 @@
 config = {
-    'exp_name': "finetune_bert",
+    'exp_name': "finetune_bert_single",
     'bert_arch': 'bert-base-multilingual-cased',
     'epochs': 3,
     'batch_size': 8,
