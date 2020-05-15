@@ -6,7 +6,7 @@ config = {
     'lr': 5e-5,
     'valid_freq': 50, 
     'save_freq': 100,
-    'device': 'cpu',
+    'device': 'cuda',
     'data_dir': "data/",
     'max_grad_norm': 1.0,
     'weight_decay': 0.0,
