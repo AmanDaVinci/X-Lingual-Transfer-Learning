@@ -78,8 +78,8 @@ class Trainer():
 
         self.tokenizer = BertTokenizer.from_pretrained(config['bert_arch'], cache_dir=CACHE_DIR)
         self.train_dl = get_dataloader(self.data_dir / "train.txt", self.tokenizer, config['batch_size'])
-        self.valid_dl = get_dataloader(self.data_dir / "valid.txt", self.tokenizer, config['batch_size'])
-        self.xnli_dl = get_dataloader(self.data_dir / "xnli.txt", self.tokenizer, config['batch_size'])
+        self.valid_dl = get_dataloader(self.data_dir / "valid.txt", self.tokenizer, config['batch_size']*2)
+        self.xnli_dl = get_dataloader(self.data_dir / "xnli.txt", self.tokenizer, config['batch_size']*2)
 
         self.model.resize_token_embeddings(len(self.tokenizer))
 
@@ -154,6 +154,7 @@ class Trainer():
                 results = self._batch_iteration(batch, training=False)
                 losses.append(results['loss'])
                 perplexities.append(results['perplexity'])
+                if i> 100: break
             
         mean_loss = np.mean(losses)
         mean_perplexity = np.exp(mean_loss)
