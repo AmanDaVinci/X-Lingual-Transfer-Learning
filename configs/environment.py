@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 
 import torch
 
@@ -15,7 +16,30 @@ def init_environment():
     setup_ipython()
 
     setup_colab()
+    copy_drive_files_locally()
     check_gpu()
+
+
+
+def copy_drive_files_locally():
+    global IN_COLAB
+
+    if IN_COLAB is False:
+        return
+
+    shutil.copytree(os.path.join(DRIVE_FOLDER, 'cache'), './cache/')
+    shutil.rmtree('./data/')
+    shutil.copytree(os.path.join(DRIVE_FOLDER, 'data'), './data/')
+
+
+def copy_drive_files_remotely():
+    global IN_COLAB
+
+    if IN_COLAB is False:
+        return
+
+    shutil.copytree('./checkpoints/', os.path.join(DRIVE_FOLDER, 'checkpoints'))
+    shutil.copytree('./results/', os.path.join(DRIVE_FOLDER, 'results'))
 
 
 def setup_colab():
@@ -34,12 +58,18 @@ def setup_colab():
 
         from google.colab import drive
         drive.mount('/content/gdrive/')
-        os.chdir(DRIVE_FOLDER)
+        # os.chdir(DRIVE_FOLDER)
 
 
 def remount_gdrive():
+    global IN_COLAB
+
+    if IN_COLAB is False:
+        return
+
+    copy_drive_files_remotely()
+
     from google.colab import drive
-    os.chdir('/content/cross-lingual-transfer-learning/')
     drive.flush_and_unmount()
     setup_colab()
 
