@@ -19,6 +19,8 @@ from transformers import (
 import cross_lingual.utils as utils
 from cross_lingual.datasets.utils import mask_tokens, get_dataloader
 
+from configs.environment import remount_gdrive
+
 RESULTS = Path("results")
 CHECKPOINTS = Path("checkpoints")
 CACHE_DIR = Path("cache")
@@ -133,6 +135,8 @@ class Trainer():
                 if i % self.config['valid_freq'] == 0:
                     self.validate('valid')
                     self.validate('xnli')
+
+                    remount_gdrive()
                 if i % self.config['save_freq'] == 0:
                     self.save_checkpoint()
     
@@ -154,7 +158,7 @@ class Trainer():
                 results = self._batch_iteration(batch, training=False)
                 losses.append(results['loss'])
                 perplexities.append(results['perplexity'])
-                if i> 100: break
+                if i> 0: break
             
         mean_loss = np.mean(losses)
         mean_perplexity = np.exp(mean_loss)
@@ -316,7 +320,6 @@ class Trainer():
         bert_layers_to_freeze = range(0, max_frozen_layer)
 
         for layer_idx in bert_layers_to_freeze:
-            print('d0', self.current_epoch, layer_idx)
             for param in self.model.bert.encoder.layer[layer_idx].parameters():
                 param.requires_grad = False
 

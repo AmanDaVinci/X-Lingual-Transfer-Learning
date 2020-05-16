@@ -37,6 +37,13 @@ def setup_colab():
         os.chdir(DRIVE_FOLDER)
 
 
+def remount_gdrive():
+    from google.colab import drive
+    os.chdir('/content/cross-lingual-transfer-learning/')
+    drive.flush_and_unmount()
+    setup_colab()
+
+
 def setup_ipython():
     try:
         from IPython import get_ipython
