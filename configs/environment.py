@@ -25,9 +25,9 @@ def init_environment():
 
 
 def copy_drive_files_locally():
-    global IN_COLAB
+    in_colab = check_colab()
 
-    if IN_COLAB is False:
+    if in_colab is False:
         return
 
     shutil.copytree(os.path.join(DRIVE_FOLDER, 'cache'), './cache/')
@@ -36,9 +36,9 @@ def copy_drive_files_locally():
 
 
 def copy_drive_files_remotely(*paths):
-    global IN_COLAB
+    in_colab = check_colab()
 
-    if IN_COLAB is False:
+    if in_colab is False:
         return
 
     for path in paths:
@@ -49,9 +49,9 @@ def copy_drive_files_remotely(*paths):
 
 
 def delete_synced_files(*paths):
-    global IN_COLAB
+    in_colab = check_colab()
 
-    if IN_COLAB is False:
+    if in_colab is False:
         return
 
     for path in paths:
@@ -60,7 +60,7 @@ def delete_synced_files(*paths):
         os.makedirs(path, exist_ok=True)
 
 
-def setup_colab():
+def check_colab():
     global IN_COLAB
 
     try:
@@ -69,9 +69,14 @@ def setup_colab():
     except:
       IN_COLAB = False
 
-    print('IN_COLAB:', IN_COLAB)
+    return IN_COLAB
 
-    if IN_COLAB is True:
+
+def setup_colab():
+    in_colab = check_colab()
+    print('IN_COLAB:', in_colab)
+
+    if in_colab is True:
         assert DEVICE == 'gpu', 'You perhaps want to switch to a GPU'
 
         sys.path.insert(0, os.getcwd())
@@ -86,9 +91,9 @@ def mount_gdrive():
 
 
 def remount_gdrive():
-    global IN_COLAB
+    in_colab = check_colab()
 
-    if IN_COLAB is False:
+    if in_colab is False:
         return
 
     from google.colab import drive
