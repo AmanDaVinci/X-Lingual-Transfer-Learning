@@ -7,7 +7,7 @@ import torch
 from dirsync import sync
 
 
-IN_COLAB = True
+IN_COLAB = False
 
 DRIVE_FOLDER = '/content/gdrive/My Drive/' \
         'NLP2 Xlingual'
@@ -17,10 +17,10 @@ DEVICE = 'cpu'
 
 def init_environment():
     setup_ipython()
+    check_gpu()
 
     setup_colab()
     copy_drive_files_locally()
-    check_gpu()
 
 
 
@@ -72,6 +72,8 @@ def setup_colab():
     print('IN_COLAB:', IN_COLAB)
 
     if IN_COLAB is True:
+        assert DEVICE == 'gpu', 'You perhaps want to switch to a GPU'
+
         sys.path.insert(0, os.getcwd())
 
         mount_gdrive()
@@ -119,7 +121,3 @@ def check_gpu():
         DEVICE = "gpu"
     else:
         DEVICE = "cpu"
-
-
-    if IN_COLAB is True:
-        assert DEVICE == 'gpu', 'You perhaps want to switch to a GPU'
