@@ -136,11 +136,12 @@ class Trainer():
                     self.validate('valid')
                     self.validate('xnli')
 
+                if i % self.config['save_freq'] == 0:
+                    self.save_checkpoint()
+
                     logging.info(f"Starting copy {i}")
                     environment.copy_drive_files_remotely(
                         self.checkpoint_dir, self.exp_dir)
-                if i % self.config['save_freq'] == 0:
-                    self.save_checkpoint()
     
     def validate(self, tag: str="valid"):
         """ Main validation loop 
@@ -327,7 +328,8 @@ class Trainer():
 
 
     def save_hidden_states(self, hidden_states, attentions):
-        fn = self.hidden_state_dir / f'epoch-{self.current_epoch:05d}.npy'
+        fn = f'Epoch[{self.current_epoch}]-Step[{self.current_iter}].npy'
+        fn = self.hidden_state_dir / fn
 
         with open(fn, 'ab') as f:
             for i in range(1, len(self.model.bert.encoder.layer)+1):

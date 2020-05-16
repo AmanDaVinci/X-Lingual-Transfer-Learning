@@ -4,7 +4,7 @@ import shutil
 
 import torch
 
-IN_COLAB = False
+IN_COLAB = True
 
 DRIVE_FOLDER = '/content/gdrive/My Drive/' \
         'NLP2 Xlingual'
@@ -32,26 +32,6 @@ def copy_drive_files_locally():
     shutil.copytree(os.path.join(DRIVE_FOLDER, 'data'), './data/')
 
 
-def ignore_older_files(dir_name, files):
-    result = set()
-    for f in files:
-        origin_fn = os.path.join(dir_name, f)
-        origin_update_time = os.lstat(origin_fn).st_mtime
-
-        target_fn = os.path.join(DRIVE_FOLDER, dir_name, f)
-        if os.path.isfile(target_fn):
-            target_update_time = os.lstat(target_fn).st_mtime
-        else:
-            target_update_time = 0
-
-        print('d1', f, origin_update_time, target_update_time)
-
-        if origin_update_time < target_update_time:
-            result.add(f)
-
-    print('d2', result)
-    return result
-
 def copy_drive_files_remotely(*paths):
     global IN_COLAB
 
@@ -61,9 +41,7 @@ def copy_drive_files_remotely(*paths):
     for path in paths:
         from dirsync import sync
         print('d0', path, os.path.join(DRIVE_FOLDER, path))
-        sync(path, os.path.join(DRIVE_FOLDER, path), 'sync', create=True, verbose=True, ctime=True)
-
-        # shutil.copytree(path, os.path.join(DRIVE_FOLDER, path), ignore=ignore_older_files)
+        sync(path, os.path.join(DRIVE_FOLDER, path), 'sync', create=True, verbose=True)
 
     remount_gdrive()
 
