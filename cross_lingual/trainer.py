@@ -142,6 +142,8 @@ class Trainer():
                     logging.info(f"Starting copy {i}")
                     environment.copy_drive_files_remotely(
                         self.checkpoint_dir, self.exp_dir)
+                    environment.delete_synced_files(
+                        self.checkpoint_dir, self.hidden_state_dir)
     
     def validate(self, tag: str="valid"):
         """ Main validation loop 

@@ -4,6 +4,9 @@ import shutil
 
 import torch
 
+from dirsync import sync
+
+
 IN_COLAB = True
 
 DRIVE_FOLDER = '/content/gdrive/My Drive/' \
@@ -39,11 +42,22 @@ def copy_drive_files_remotely(*paths):
         return
 
     for path in paths:
-        from dirsync import sync
         print('d0', path, os.path.join(DRIVE_FOLDER, path))
         sync(path, os.path.join(DRIVE_FOLDER, path), 'sync', create=True, verbose=True)
 
     remount_gdrive()
+
+
+def delete_synced_files(*paths):
+    global IN_COLAB
+
+    if IN_COLAB is False:
+        return
+
+    for path in paths:
+        print('d1', path)
+        shutil.rmtree(path)
+        os.makedirs(path, exist_ok=True)
 
 
 def setup_colab():
