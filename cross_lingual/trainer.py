@@ -19,7 +19,7 @@ from transformers import (
 import cross_lingual.utils as utils
 from cross_lingual.datasets.utils import mask_tokens, get_dataloader
 
-from configs.environment import remount_gdrive
+from configs import environment
 
 RESULTS = Path("results")
 CHECKPOINTS = Path("checkpoints")
@@ -136,7 +136,9 @@ class Trainer():
                     self.validate('valid')
                     self.validate('xnli')
 
-                    remount_gdrive()
+                    logging.info(f"Starting copy {i}")
+                    environment.copy_drive_files_remotely(
+                        self.checkpoint_dir, self.exp_dir)
                 if i % self.config['save_freq'] == 0:
                     self.save_checkpoint()
     
