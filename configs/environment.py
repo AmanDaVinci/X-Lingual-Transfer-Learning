@@ -1,7 +1,11 @@
 import os
 import sys
+import shutil
 
 import torch
+
+from dirsync import sync
+
 
 IN_COLAB = False
 
@@ -13,12 +17,50 @@ DEVICE = 'cpu'
 
 def init_environment():
     setup_ipython()
-
-    setup_colab()
     check_gpu()
 
+    setup_colab()
+    copy_drive_files_locally()
 
-def setup_colab():
+
+
+def copy_drive_files_locally():
+    in_colab = check_colab()
+
+    if in_colab is False:
+        return
+
+    shutil.copytree(os.path.join(DRIVE_FOLDER, 'cache'), './cache/')
+    shutil.rmtree('./data/')
+    shutil.copytree(os.path.join(DRIVE_FOLDER, 'data'), './data/')
+
+
+def copy_drive_files_remotely(*paths):
+    in_colab = check_colab()
+
+    if in_colab is False:
+        return
+
+    for path in paths:
+        print('d0', path, os.path.join(DRIVE_FOLDER, path))
+        sync(path, os.path.join(DRIVE_FOLDER, path), 'sync', create=True, verbose=True)
+
+    remount_gdrive()
+
+
+def delete_synced_files(*paths):
+    in_colab = check_colab()
+
+    if in_colab is False:
+        return
+
+    for path in paths:
+        print('d1', path)
+        shutil.rmtree(path)
+        os.makedirs(path, exist_ok=True)
+
+
+def check_colab():
     global IN_COLAB
 
     try:
@@ -27,14 +69,36 @@ def setup_colab():
     except:
       IN_COLAB = False
 
-    print('IN_COLAB:', IN_COLAB)
+    return IN_COLAB
 
-    if IN_COLAB is True:
+
+def setup_colab():
+    in_colab = check_colab()
+    print('IN_COLAB:', in_colab)
+
+    if in_colab is True:
+        assert DEVICE == 'gpu', 'You perhaps want to switch to a GPU'
+
         sys.path.insert(0, os.getcwd())
 
-        from google.colab import drive
-        drive.mount('/content/gdrive/')
-        os.chdir(DRIVE_FOLDER)
+        mount_gdrive()
+
+
+def mount_gdrive():
+    from google.colab import drive
+    drive.mount('/content/gdrive/')
+    # os.chdir(DRIVE_FOLDER)
+
+
+def remount_gdrive():
+    in_colab = check_colab()
+
+    if in_colab is False:
+        return
+
+    from google.colab import drive
+    drive.flush_and_unmount()
+    mount_gdrive()
 
 
 def setup_ipython():

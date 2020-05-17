@@ -19,6 +19,8 @@ from transformers import (
 import cross_lingual.utils as utils
 from cross_lingual.datasets.utils import mask_tokens, get_dataloader
 
+from configs import environment
+
 RESULTS = Path("results")
 CHECKPOINTS = Path("checkpoints")
 CACHE_DIR = Path("cache")
@@ -133,8 +135,15 @@ class Trainer():
                 if i % self.config['valid_freq'] == 0:
                     self.validate('valid')
                     self.validate('xnli')
+
                 if i % self.config['save_freq'] == 0:
                     self.save_checkpoint()
+
+                    logging.info(f"Starting copy {i}")
+                    environment.copy_drive_files_remotely(
+                        self.checkpoint_dir, self.exp_dir)
+                    environment.delete_synced_files(
+                        self.checkpoint_dir, self.hidden_state_dir)
     
     def validate(self, tag: str="valid"):
         """ Main validation loop 
@@ -154,7 +163,7 @@ class Trainer():
                 results = self._batch_iteration(batch, training=False)
                 losses.append(results['loss'])
                 perplexities.append(results['perplexity'])
-                if i> 100: break
+                if i> 0: break
             
         mean_loss = np.mean(losses)
         mean_perplexity = np.exp(mean_loss)
@@ -316,13 +325,13 @@ class Trainer():
         bert_layers_to_freeze = range(0, max_frozen_layer)
 
         for layer_idx in bert_layers_to_freeze:
-            print('d0', self.current_epoch, layer_idx)
             for param in self.model.bert.encoder.layer[layer_idx].parameters():
                 param.requires_grad = False
 
 
     def save_hidden_states(self, hidden_states, attentions):
-        fn = self.hidden_state_dir / f'epoch-{self.current_epoch:05d}.npy'
+        fn = f'Epoch[{self.current_epoch}]-Step[{self.current_iter}].npy'
+        fn = self.hidden_state_dir / fn
 
         with open(fn, 'ab') as f:
             for i in range(1, len(self.model.bert.encoder.layer)+1):
