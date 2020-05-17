@@ -197,8 +197,8 @@ class Trainer():
 
         # send tensors to model device
         inputs, labels = mask_tokens(batch, self.tokenizer)
-        inputs = inputs.to(self.config['device'])
-        labels = labels.to(self.config['device'])
+        inputs = inputs.to(self.device)
+        labels = labels.to(self.device)
 
         if training:
             # don't we need self.model.train()
