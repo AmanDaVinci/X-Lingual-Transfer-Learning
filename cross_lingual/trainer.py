@@ -294,10 +294,10 @@ class Trainer():
             logging.error(f"No checkpoint exists @ {self.checkpoint_dir}")
 
     def freeze_layers(self):
-        freeze_per_epoch = self.config.get('freeze_per_epoch', False)
+        freeze_gradually = self.config.get('freeze_gradually', False)
         freeze_static_layers = self.config.get('freeze_static_layers', 0)
 
-        assert not (bool(freeze_per_epoch) and bool(freeze_static_layers)), \
+        assert not (bool(freeze_gradually) and bool(freeze_static_layers)), \
             'Cannot have both gradual freezing and static freezing'
 
         # start by un-freezing everything
@@ -309,9 +309,14 @@ class Trainer():
         for param in self.model.bert.embeddings.parameters():
             param.requires_grad = False
 
-        if freeze_per_epoch is True:
+        if freeze_gradually is True:
+            total_steps = len(self.train_dl) * self.config['epochs']
+            current_iter = self.current_iter + len(self.train_dl)
+            unfrozen_layers = int(np.floor(current_iter / total_steps *
+                (len(self.model.bert.encoder.layer))))
+
             max_frozen_layer = max(
-                0, len(self.model.bert.encoder.layer) - self.current_epoch)
+                0, len(self.model.bert.encoder.layer) - unfrozen_layers)
             bert_layers_to_freeze = range(0, max_frozen_layer)
         elif freeze_static_layers:
             assert (0 <= freeze_static_layers) and \
