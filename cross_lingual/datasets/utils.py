@@ -40,9 +40,14 @@ def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, mlm_probab
     # The rest of the time (10% of the time) we keep the masked input tokens unchanged
     return inputs, labels
 
-def get_dataloader(data_path: Path, tokenizer: PreTrainedTokenizer, batch_size: int):
+def get_dataloader(data_path: Path, tokenizer: PreTrainedTokenizer, batch_size: int, random_sampler=True):
     dataset = LineTextDataset(data_path, tokenizer, tokenizer.max_len)
-    sampler = RandomSampler(dataset)
+
+    if random_sampler is True:
+        sampler = RandomSampler(dataset)
+    else:
+        sampler = None
+
     dataloader = DataLoader(dataset, sampler=sampler, batch_size=batch_size,
                             collate_fn=partial(dataset.collate, pad_token_id=tokenizer.pad_token_id))
     return dataloader
