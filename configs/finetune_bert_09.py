@@ -1,0 +1,17 @@
+config = {
+    'exp_name': "finetune_bert_09",
+    'bert_arch': 'bert-base-multilingual-cased',
+    'epochs': 3,
+    'batch_size': 8,
+    'lr': 5e-5,
+    'valid_freq': 100, 
+    'save_freq': 1000,
+    'device': 'cuda',
+    'data_dir': "data/",
+    'max_grad_norm': 1.0,
+    'weight_decay': 0.0,
+    'adam_epsilon': 1e-8,
+    'warmup_steps': 0,
+    'freeze_per_epoch': False,
+    'freeze_static_layers': 9,
+}
