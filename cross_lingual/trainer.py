@@ -120,6 +120,9 @@ class Trainer():
     
     def train(self):
         """ Main training loop """
+        if 'train_checkpoint' in self.config:
+            self.load_checkpoint(self.config['train_checkpoint'])
+
         for epoch in range(self.current_epoch, self.config['epochs']):
             self.current_epoch = epoch
             self.freeze_layers()
