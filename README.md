@@ -29,10 +29,25 @@ Our core source code is organized under [`./cross_lingual/`](./cross_lingual/) a
 * [`utils.py`](./cross_lingual/utils.py): utility functions for logging experiments
 * [`hidden_state_utils.py`](./cross_lingual/hidden_state_utils.py): functions for experimenting with hidden states
 
+
 ## Environment
 
 All notebooks (including [`trainer.ipynb`](./notebooks/trainer.ipynb)) have been run on [Google Colab](https://colab.research.google.com/).
 We do note that our saved checkpoints and activations take about 1 GiB of disk space per item. Our total disk usage for the whole experiment amounted about 2 TiB.
+
+
+## Workflow
+
+Initially, the XNLI dataset is reduced in size to match our Dutch dataset size (see the linked paper).
+This is done in [`data_preparation.ipynb`](./notebooks/data_preparation.ipynb).
+
+Afterwards, the models we examined are trained (see [`./configs/`](./configs/)), which was done with the [`trainer.ipynb`](./notebooks/trainer.ipynb) notebook.
+Its first cell sets up the environment, be it locally or on Google Colab.
+
+The other notebooks contain various experiments.
+[`embedding_analysis.ipynb`](./notebooks/embedding_analysis.ipynb) looked at differences in the embeddings of similar words in English and Dutch. These results are not included in our report.
+[`perplexity_analysis.ipynb`](./notebooks/perplexity_analysis.ipynb) contains analysis and graph generation of our perplexity experiments across models and datasets.
+Similarly, [`hidden-state-graphs.ipynb`](./notebooks/hidden-state-graphs.ipynb) is used go generate all our graphs regarding the hidden state analysis.
 
 
 ## Paper
