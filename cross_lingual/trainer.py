@@ -179,11 +179,9 @@ class Trainer():
                   f"Loss: {mean_loss:3f}")
         logging.info(report)
 
-    def test(self, test_file: str = 'test.txt'):
+    def test(self, test_file: str = 'test.txt', load_best: bool = True):
         """ Main testing loop """
-        if 'test_checkpoint' in self.config:
-            self.load_checkpoint(self.config['test_checkpoint'])
-        else:
+        if load_best:
             self.load_checkpoint(BEST_MODEL_FNAME)
 
         losses = []
