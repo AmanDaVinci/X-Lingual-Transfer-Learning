@@ -23,6 +23,12 @@ During the training process, checkpoints (as well as the best trained model) are
 After training is (sufficiently) complete, analysis can be performed on the trained models and logged hidden states.
 All our analysis code is present in [`./notebooks/`](./notebooks/).
 
+Our core source code is organized under [`./cross_lingual/`](./cross_lingual/) as follows:
+* [`datasets/`](./cross_lingual/datasets/): Dataset class for reading the Dutch and XNLI corpus
+* [`trainer.py`](./cross_lingual/trainer.py): Implements the train, validationa and test routine
+* [`utils.py`](./cross_lingual/utils.py): utility functions for logging experiments
+* [`hidden_state_utils.py`](./cross_lingual/hidden_state_utils.py): functions for experimenting with hidden states
+
 ## Environment
 
 All notebooks (including [`trainer.ipynb`](./notebooks/trainer.ipynb)) have been run on [Google Colab](https://colab.research.google.com/).
