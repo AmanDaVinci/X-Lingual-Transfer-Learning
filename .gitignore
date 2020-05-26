@@ -138,4 +138,4 @@ dmypy.json
 
 # training data
 /checkpoints/
-/results/
+#/results/
