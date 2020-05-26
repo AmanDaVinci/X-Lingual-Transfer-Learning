@@ -35,8 +35,6 @@ def compare_hidden_states(ls1, ls2, layer):
     return np.mean(np.linalg.norm(diff, ord=2, axis=-1))
 
 
-
-
 def get_state_files(dir_name):
     files = os.listdir(dir_name)
     epoch_step_pairs = []
