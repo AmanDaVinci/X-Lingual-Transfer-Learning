@@ -8,7 +8,9 @@ Cross-lingual fine-tuning has been widely used to bridge the gap between high-re
 
 ## Code organisation
 
-Our library dependencies are listedin [`./requirements.txt`](./requirements.txt).
+Our library dependencies are listed in [`./requirements.txt`](./requirements.txt).
+Installation of requirements can happen through `pip3 install -r requirements.txt`.
+This environment setup is already present in [`trainer.ipynb`](./notebooks/trainer.ipynb).
 
 The backbone of our code is located in [`./cross_lingual/`](./cross_lingual/), while training and testing are managed by [`./main.py`](./main.py).
 Samples commands:

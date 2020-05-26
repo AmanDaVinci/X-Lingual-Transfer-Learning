@@ -1,4 +1,4 @@
-pytorch==1.5.0
+torch==1.5.0
 tqdm==4.41.1
 dirsync==2.2.4
 jupyter==1.0.0
