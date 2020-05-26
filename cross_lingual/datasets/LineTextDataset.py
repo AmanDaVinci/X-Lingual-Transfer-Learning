@@ -6,6 +6,7 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import PreTrainedTokenizer
 
 class LineTextDataset():
+    ''' Read text data files line by line where each line is one sentence'''
 
     def __init__(self, file_path: Path, tokenizer: PreTrainedTokenizer, block_size=512):
         assert file_path.is_file(), "Missing data file"
